@@ -46,7 +46,7 @@ const testControls = {
 		const V = state[0]
 		const kEps = this.t0 > 0 ? (state[3] - this._alpha0)/DT : 0
 		if(V < 25) return 0
-		let delta = 1.25 * (state[1] + 12.5/57.3) + 75.5 * kEps
+		let delta = 1.25 * (state[1] + 3.695/57.3) + 75.5 * kEps
 		
 		if(delta < 0) {
 			if(delta < -15) delta = -15
@@ -252,12 +252,12 @@ const test_integ = integrate(
 	initial_state_test,
 	testParams,
 	testControls,
-	180.5,
+	100.5,
 	DT
 )
 
 const integ_res = test_integ.reduce((res, row, i) => {
-	if(i % 100 !== 0) return res
+	if(i % 10 !== 0) return res
 	res += [
 		row[0].toFixed(2),
 		row[1].toFixed(1),
