@@ -1,17 +1,17 @@
 'use strict'
 function indexLookup(index, X, X0, VX) {
 	const size = VX.length
-	if(X > X0) {
-		if(X < VX[index + 1]) return
+	if(X >= X0) {
+		if(X < VX[index + 1]) return index
 		let i0 = index
 		for(let i = i0; i < size; i++) {
-			if(VX[i0 + 1] > X) return i0
+			if(VX[i + 1] > X) return i
 		}
 	}
-	let i1 = index
-	let i0 = i1 - 1
-	for(let i = i1; i > -1; i--) {		
-		if(VX[X > i0]) return i0
+	let i0
+	for(let i = index; i > -1; i--) {
+		i0 = i - 1
+		if(VX[i0] < X) return i0
 	}
 }
 
@@ -82,26 +82,31 @@ const Interp2D = function() {
 	this.kX2 = 0
 }
 
-Interp2D.prototype.init = function(VX1, VX2, VY) {
+Interp2D.prototype.init = function(VX1, VX2, VY, X1_0, X2_0) {
 	this.size1 = VX1.length
 	this.size2 = VX2.length
 	this.arg1 = Float64Array.from(VX1)
 	this.arg2 = Float64Array.from(VX2)
-	this.val = Float64Array.from(VY)
-	
+	this.val = new Array(this.size1)
+
 	for(let i = 0; i < this.size1; i++) {
-		if (this.arg1[i + 1] > X0) {
+		this.val[i] = Float64Array.from(VY[i])
+	}
+	
+	for(let i = 0; i < this.size12; i++) {
+		if (this.arg1[i + 1] > X1_0) {
 			this.index1 = i
-			break
+			break;
 		}
 	}
 	
-	for(let i = 0; i < this.size1; i++) {
-		if (this.arg2[i + 1] > X0) {
+	for(let i = 0; i < this.size2; i++) {
+		if (this.arg2[i + 1] > X2_0) {
 			this.index2 = i
-			break
+			break;
 		}
 	}
+
 	this.Y00 = this.val[this.index1][this.index2]
 	this.Y01 = this.val[this.index1][this.index2 + 1]
 	
@@ -114,15 +119,15 @@ Interp2D.prototype.init = function(VX1, VX2, VY) {
 	this.X0_1 = this.arg1[this.index1 + 1]
 	this.X1_1 = this.arg2[this.index2 + 1]
 	
-	this.kX1 = (Y01 - Y00) / (X0_1 - X0_0)
-	this.kX2 = (Y11 - Y10) / (X0_1 - X0_0)
+	this.kX1 = (this.Y10 - this.Y00) / (this.X0_1 - this.X0_0)
+	this.kX2 = (this.Y11 - this.Y01) / (this.X0_1 - this.X0_0)
 }
 
 Interp2D.prototype.interp = function(X1, X2) {
 	const Y_0 = this.Y00 + this.kX1 * (X1 - this.X0_0)
-	const Y_1 = this.Y10 + this.kX2 * (X1 - this.X0_0)
-	
-	retutn Y_0 + (Y_1 - Y_1) * (X2 - this.X1_0) / (this.X1_1 - this.X1_0)
+	const Y_1 = this.Y01 + this.kX2 * (X1 - this.X0_0)
+
+	return Y_0 + (Y_1 - Y_0) * (X2 - this.X1_0) / (this.X1_1 - this.X1_0)
 }
 
 Interp2D.prototype.checkIndices = function(X1, X2) {
@@ -131,6 +136,7 @@ Interp2D.prototype.checkIndices = function(X1, X2) {
 	
 	const i10 = this.index1 + 1
 	const i11 = this.index2 + 1
+
 	this.Y00 = this.val[this.index1][this.index2]
 	this.Y01 = this.val[this.index1][i11]
 	
@@ -143,8 +149,8 @@ Interp2D.prototype.checkIndices = function(X1, X2) {
 	this.X0_1 = this.arg1[i10]
 	this.X1_1 = this.arg2[i11]
 	
-	this.kX1 = (Y01 - Y00) / (X0_1 - X0_0)
-	this.kX2 = (Y11 - Y10) / (X0_1 - X0_0)
+	this.kX1 = (this.Y10 - this.Y00) / (this.X0_1 - this.X0_0)
+	this.kX2 = (this.Y11 - this.Y01) / (this.X0_1 - this.X0_0)
 }
 
 module.exports = {
