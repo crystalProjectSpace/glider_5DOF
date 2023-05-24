@@ -4,8 +4,26 @@ const { integrate, printResult, R2G } = require('./trajectory.js')
 const { MX, AX, DX, CYA, CXA, MZ, dMZ, dMX } = require('./init_data.json') // импорт ИД
 const { GliderControls } = require('./controls.js')
 const { Interp1D, Interp2D } = require('./utils.js')
+const { argv } = require('node:process')
 
-const setTrajectoryExperiment = function(state0, deltaPitch, deltaRoll, tauMax, dT, resSparse) {
+const getValue = function(raw) {
+    return +raw.split('=')[1]
+}
+
+const ANGLE_INDICES = [1, 2, 3, 4, 8, 9]
+
+const setTrajectoryExperiment = function() {
+    
+    const [stateStr, deltaPitch, deltaRoll, tauMax, dT, resSparse] = argv.slice(2)
+    const stateValue = stateStr
+        .split('=')[1]
+        .split(',')
+        .map((val, index) => [ANGLE_INDICES].includes(index) ? val / R2G : val)
+    const deltaPitchValue = getValue(deltaPitch)
+    const deltaRollValue = getValue(deltaRoll)
+    const tauMaxValue = getValue(tauMax)
+    const dTValue = getValue(dT)
+    const resSparseValue = getValue(resSparse)
     /**
     * @description параметры планера
     */
@@ -24,9 +42,9 @@ const setTrajectoryExperiment = function(state0, deltaPitch, deltaRoll, tauMax, 
     
     const testControls = new GliderControls()
 
-    testControls.setBasePitch(deltaPitch)
+    testControls.setBasePitch(deltaPitchValue)
     
-    testControls.setBaseRoll(deltaRoll)
+    testControls.setBaseRoll(deltaRollValue)
 
     testParams.interpCYA.init(MX, AX, CYA, 0, 0)
     testParams.interpCXA.init(MX, AX, CXA, 0, 0)
@@ -35,29 +53,16 @@ const setTrajectoryExperiment = function(state0, deltaPitch, deltaRoll, tauMax, 
     testParams.dMX_aileron.init(DX, dMX, 0)
 
     const test_integ = integrate(
-        state0,
+        stateValue,
         testParams,
         testControls,
-        tauMax,
-        dT
+        tauMaxValue,
+        dTValue
     );
     
     (async function() {
-        await printResult('res_1.txt', test_integ, resSparse)
+        await printResult('res_1.txt', test_integ, resSparseValue)
     })()
 }
 
-const INITIAL_STATE = [
-    225,	//V
-    1/R2G,	//Th
-    0,		//Psi
-    0,		//epsZ
-    0,		//epsX
-    15,		//X
-    14500,	//Y
-    0,		//Z
-    0/R2G,//alpha
-    0		//gamma
-]
-
-setTrajectoryExperiment(INITIAL_STATE, -4, 0, 10, 0.001, 100)
+setTrajectoryExperiment()
