@@ -7,7 +7,7 @@ const { Interp1D, Interp2D } = require('./utils.js')
 const { argv } = require('node:process')
 
 const getValue = function(raw) {
-    return +raw.split('=')[1]
+    return Number(raw.split('=')[1])
 }
 
 const ANGLE_INDICES = [1, 2, 3, 4, 8, 9]
@@ -18,7 +18,7 @@ const setTrajectoryExperiment = function() {
     const stateValue = stateStr
         .split('=')[1]
         .split(',')
-        .map((val, index) => [ANGLE_INDICES].includes(index) ? val / R2G : val)
+        .map((val, index) => [ANGLE_INDICES].includes(index) ? (+val / R2G) : +val)
     const deltaPitchValue = getValue(deltaPitch)
     const deltaRollValue = getValue(deltaRoll)
     const tauMaxValue = getValue(tauMax)
@@ -42,10 +42,31 @@ const setTrajectoryExperiment = function() {
     
     const testControls = new GliderControls()
 
-    testControls.setBasePitch(deltaPitchValue)
+    testControls.initPitchCtrl(
+        -24.5,
+        24.5,
+        720,
+        0.1,
+        12.25,
+        3.,
+        19.5,
+        -2/R2G
+    )
     
-    testControls.setBaseRoll(deltaRollValue)
+    testControls.initRollCtrl(
+        -24.5,
+        24.5,
+        720,
+        0.1,
+        -1.0,
+        0.0,
+        -4.0,
+        25/R2G
+    )
 
+    testControls.togglePitch(true)
+    testControls.toggleRoll(true)
+    
     testParams.interpCYA.init(MX, AX, CYA, 0, 0)
     testParams.interpCXA.init(MX, AX, CXA, 0, 0)
     testParams.interpMZ.init(MX, AX, MZ, 0, 0)

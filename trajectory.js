@@ -35,14 +35,14 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	const alpha = state[8]
 	const gamma = state[9]
 	const a_x = alpha * 57.3
-	
+
 	const Mach = V / aSnH(Y)
 	const QS = 0.5 * RoH(Y) * V * V * params.S_wing
 	const QSB = QS * params.B_chord
 	
 	const deltaElevator = controls.deltaPitch()
 	const deltaAileron = controls.deltaRoll()
-	
+
 	const Cya = params.interpCYA.interp(Mach, a_x)
 	const Cxa = params.interpCXA.interp(Mach, a_x)
 	const mZ0 = params.interpMZ.interp(Mach, a_x)
@@ -101,14 +101,14 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 		H = state[6]
 		alpha = state[8] * R2G
 		Mach = V / aSnH(H)
-		
+
 		interpCYA.checkIndices(Mach, alpha)
 		interpCXA.checkIndices(Mach, alpha)
 		interpMZ.checkIndices(Mach, alpha)
 		dMZ_elevator.checkIndex(controls.deltaPitch())
 		dMX_aileron.checkIndex(controls.deltaRoll())
-		controls.checkControls(state[1], state[9], tau)
-		
+		controls.checkControls(state, tau)
+
 		getDerivatives(controls, params, state, tau, K0, dT)
 		for(let j = 0; j < N_VARS; j++) {
 			_state[j] = state[j] + dT_05 * K0[j]
@@ -128,7 +128,7 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 
 		tau += dT
 		_res[0] = tau
-		for(let j = 1; j < N_VARS; j++) {
+		for(let j = 1; j < N_VARS + 1; j++) {
 			const j0 = j - 1
 			_res[j] = state[j0] + dT_6 * (K0[j0] + 2*(K1[j0] + K2[j0]) + K3[j0])
 		}

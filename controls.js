@@ -30,6 +30,8 @@ ControlSystem.prototype.setTarget = function(val) {
     this.integralError = 0
     this.prmPrev = 0
     this.tauPrev = 0
+
+    this.omegaZprev = 0
 }
 
 ControlSystem.prototype.setK_proportional = function(kP) {
@@ -41,10 +43,10 @@ ControlSystem.prototype.setK_integral = function(kI) {
 }
 
 ControlSystem.prototype.setK_differential = function(kD) {
-    this.k_p = kD
+    this.k_d = kD
 }
 
-ControlSystem.prototype.controlStep = function(parameter, t) {
+ControlSystem.prototype.controlStep = function(state, t) {
     const deltaT = t - this.tauPrev
     if(deltaT < this.sparsity) return
     this.tauPrev = t
@@ -59,6 +61,45 @@ ControlSystem.prototype.controlStep = function(parameter, t) {
     if(delta > 0) delta = Math.min(delta, this.deltaSpeed * deltaT)
     if(delta < 0) delta = Math.max(delta, -this.deltaSpeed * deltaT)
 
+    this.currentDelta += delta
+    if(this.currentDelta > this.maxDelta) this.currentDelta = this.maxDelta
+    if(this.currentDelta < this.minDelta) this.currentDelta = this.minDelta
+}
+
+ControlSystem.prototype.pitchControlStep = function(state, t) {
+    const deltaT = t - this.tauPrev
+    if(deltaT < this.sparsity) return
+    this.tauPrev = t
+    const ThErr = state[1] - this.targetValue
+    const dOmegaZ = (state[8] - this.omegaZprev) / deltaT
+    this.integralError += ThErr * this.k_i * deltaT
+    const targetControl = ThErr * this.k_p + this.integralError + this.k_d * dOmegaZ
+    let delta = targetControl - this.currentDelta
+    
+    if(delta > 0) delta = Math.min(delta, this.deltaSpeed * deltaT)
+    if(delta < 0) delta = Math.max(delta, -this.deltaSpeed * deltaT)
+
+    this.omegaZprev = state[8]
+    this.currentDelta += delta
+    if(this.currentDelta > this.maxDelta) this.currentDelta = this.maxDelta
+    if(this.currentDelta < this.minDelta) this.currentDelta = this.minDelta
+}
+
+ControlSystem.prototype.rollControlStep = function(state, t) {
+    const deltaT = t - this.tauPrev
+    if(deltaT < this.sparsity) return
+    this.tauPrev = t
+
+    const gammaErr = state[9] - this.targetValue
+    const dOmegaX = (state[9] - this.prmPrev) / deltaT
+    this.integralError += gammaErr * this.k_i * deltaT
+    const targetControl = gammaErr * this.k_p + this.integralError + this.k_d * dOmegaX
+    let delta = targetControl - this.currentDelta
+      
+    if(delta > 0) delta = Math.min(delta, this.deltaSpeed * deltaT)
+    if(delta < 0) delta = Math.max(delta, -this.deltaSpeed * deltaT)
+
+    this.prmPrev = state[9]
     this.currentDelta += delta
     if(this.currentDelta > this.maxDelta) this.currentDelta = this.maxDelta
     if(this.currentDelta < this.minDelta) this.currentDelta = this.minDelta
@@ -81,6 +122,7 @@ GliderControls.prototype.initPitchCtrl = function(
     kD,
     ThTarget
 ) {
+    
     this.pitchControl.init(minD, maxD, deltaSpeed, sparsity)
     this.pitchControl.setTarget(ThTarget)
     this.pitchControl.setK_proportional(kP)
@@ -105,9 +147,9 @@ GliderControls.prototype.initRollCtrl = function(
     this.rollControl.setK_differential(kD)
 }
 
-GliderControls.prototype.checkControls = function(Th, gamma, t) {
-    this.pitchControlActive && this.pitchControl.controlStep(Th, t)
-    this.rollControlActive && this.rollControl.controlStep(gamma, t)
+GliderControls.prototype.checkControls = function(state, t) {
+    this.pitchControlActive && this.pitchControl.pitchControlStep(state, t)
+    this.rollControlActive && this.rollControl.rollControlStep(state, t)
 }
 
 GliderControls.prototype.deltaPitch = function(){
