@@ -3,12 +3,25 @@
 const { writeFile } = require('node:fs/promises')
 const { performance } = require('perf_hooks')
 
-
-const DT = 0.001 // дефолтный шаг интегрирования по времени
 const g0 = 9.807 // ускорение свободного падения
-const DEFAULT_HEADER = 't[s]\tV[m/s]\tTh[gr]\tPsi[gr]\twZ[gr/s]\twX[gr/s]\tX[m]\tY[m]\tZ[m]\tpitch[gr]\troll[gr]\n' // заголовок таблицы результатов выдачи
+const DEFAULT_HEADER = [
+	't[s]',
+	'V[m/s]',
+	'Th[gr]',
+	'Psi[gr]',
+	'wZ[gr/s]',
+	'wX[gr/s]',
+	'X[m]',
+	'Y[m]',
+	'Z[m]',
+	'pitch[gr]',
+	'roll[gr]',
+	'dElev[gr]',
+	'dAil[gr]',
+	'\n'] // заголовок таблицы результатов выдачи
 const R2G = 180 / Math.PI // перевод градусы <=> радианы
 const N_VARS = 10 // количество уравнений (3 ускорения + 3 скорости + 2 угл.ускорения + 2 угл.скорости)
+const N_PRMS = 3 // количество независимых параметров (время/откл.руля высоты/откл.элеронов)
 /**
 * @description плотность
 */
@@ -84,18 +97,18 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 	let Mach = 0
 	const dT_05 = 0.5 * dT
 	const dT_6 = dT * 0.1666666666666666667
-	const result = [[tau, ...initialState]]
-	let K0 = new Float64Array(N_VARS)
-	let K1 = new Float64Array(N_VARS)
-	let K2 = new Float64Array(N_VARS)
-	let K3 = new Float64Array(N_VARS)
+	const result = [Float64Array.from([tau, ...initialState, controls.deltaPitch(), controls.deltaRoll() ])]
+	const K0 = new Float64Array(N_VARS)
+	const K1 = new Float64Array(N_VARS)
+	const K2 = new Float64Array(N_VARS)
+	const K3 = new Float64Array(N_VARS)
 	const _state = new Float64Array(N_VARS)
-	const _res = new Float64Array(N_VARS + 1)
+	const _res = new Float64Array(N_VARS + N_PRMS)
 	const { interpCYA, interpCXA, interpMZ, dMZ_elevator, dMX_aileron } = params
 	const t0 = performance.now()
 	
 	while (tau < tauMax) {
-		const state = result[i++].slice(1)
+		const state = result[i++].slice(1, 11)
 		
 		V = state[0]
 		H = state[6]
@@ -105,8 +118,12 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 		interpCYA.checkIndices(Mach, alpha)
 		interpCXA.checkIndices(Mach, alpha)
 		interpMZ.checkIndices(Mach, alpha)
-		dMZ_elevator.checkIndex(controls.deltaPitch())
-		dMX_aileron.checkIndex(controls.deltaRoll())
+
+		const dElevator = controls.deltaPitch()
+		const dAileron = controls.deltaRoll()
+
+		dMZ_elevator.checkIndex(dElevator)
+		dMX_aileron.checkIndex(dAileron)
 		controls.checkControls(state, tau)
 
 		getDerivatives(controls, params, state, tau, K0, dT)
@@ -132,6 +149,8 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 			const j0 = j - 1
 			_res[j] = state[j0] + dT_6 * (K0[j0] + 2*(K1[j0] + K2[j0]) + K3[j0])
 		}
+		_res[11] = dElevator
+		_res[12] = dAileron
 		result.push(_res.slice())
 	}
 	const t1 = performance.now() - t0
@@ -147,7 +166,7 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
  * @param {number} sparce скважность выборки записей в результат
  * @param {boolean} comaSwitch флаг замены точки на запятые (для совместимости с Excel/PlanMaker)
  */
-const printResult = async function(path, data, sparce, tableHeader = DEFAULT_HEADER, comaSwitch = true) {
+const printResult = async function(path, data, sparce, tableHeader = DEFAULT_HEADER.join('\t'), comaSwitch = true) {
 	let result = tableHeader
 	const size = Math.floor(data.length / sparce)
 	let k = 0
@@ -165,6 +184,8 @@ const printResult = async function(path, data, sparce, tableHeader = DEFAULT_HEA
 			data[k][8].toFixed(0),
 			(data[k][9] * R2G).toFixed(2),
 			(data[k][10] * R2G).toFixed(2),
+			data[k][11].toFixed(1),
+			data[k][12].toFixed(1),
 		].join('\t') + '\n'
 		if (comaSwitch) tempStr = tempStr.replaceAll('.', ',')
 		result += tempStr

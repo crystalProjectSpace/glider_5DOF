@@ -112,8 +112,19 @@ const GliderControls = function() {
     this.rollControlActive = false
 }
 
+/**
+ * @description инициализация программы управления в канале тангажа
+ * @param {float} minD - минимальный угол отклонения управляющей поверхности, град
+ * @param {float} maxD  - максимальный угол отклонения управляющей поверхности, град
+ * @param {float} deltaSpeed - быстродействие управляющей поверхности
+ * @param {float} sparsity - промежуток времени между управляющими воздействиями
+ * @param {float} kP весовой коэффициент пропорциональной составлящей
+ * @param {float} kI                     интегральной
+ * @param {float} kD                     дифференциальной
+ * @param {float} ThTarget - целевой угол (наклон к местному горизонту)
+ */
 GliderControls.prototype.initPitchCtrl = function(
-    minD,
+    minD,       
     maxD,
     deltaSpeed,
     sparsity,
@@ -129,7 +140,9 @@ GliderControls.prototype.initPitchCtrl = function(
     this.pitchControl.setK_integral(kI)
     this.pitchControl.setK_differential(kD)
 }
-
+/**
+ * @description инициализация управления в канале курса. Аналогично каналу тангажа, целевая функция - угол крена
+ */
 GliderControls.prototype.initRollCtrl = function(
     minD,
     maxD,
