@@ -70,10 +70,11 @@ ControlSystem.prototype.pitchControlStep = function(state, t) {
     const deltaT = t - this.tauPrev
     if(deltaT < this.sparsity) return
     this.tauPrev = t
-    const ThErr = state[1] - this.targetValue
+    const thErr = state[1] - this.targetValue
+    //const alphaErr = state[8] - this.targetValue
     const dOmegaZ = (state[8] - this.omegaZprev) / deltaT
-    this.integralError += ThErr * this.k_i * deltaT
-    const targetControl = ThErr * this.k_p + this.integralError + this.k_d * dOmegaZ
+    this.integralError += thErr * this.k_i * deltaT
+    const targetControl = thErr * this.k_p + this.integralError + this.k_d * dOmegaZ
     let delta = targetControl - this.currentDelta
     
     if(delta > 0) delta = Math.min(delta, this.deltaSpeed * deltaT)
@@ -124,7 +125,7 @@ const GliderControls = function() {
  * @param {float} ThTarget - целевой угол (наклон к местному горизонту)
  */
 GliderControls.prototype.initPitchCtrl = function(
-    minD,       
+    minD,
     maxD,
     deltaSpeed,
     sparsity,

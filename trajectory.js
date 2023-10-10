@@ -18,9 +18,10 @@ const DEFAULT_HEADER = [
 	'roll[gr]',
 	'dElev[gr]',
 	'dAil[gr]',
+	'm[kg]',
 	'\n'] // заголовок таблицы результатов выдачи
 const R2G = 180 / Math.PI // перевод градусы <=> радианы
-const N_VARS = 10 // количество уравнений (3 ускорения + 3 скорости + 2 угл.ускорения + 2 угл.скорости)
+const N_VARS = 11 // количество уравнений (3 ускорения + 3 скорости + 2 угл.ускорения + 2 угл.скорости + масса)
 const N_PRMS = 3 // количество независимых параметров (время/откл.руля высоты/откл.элеронов)
 /**
 * @description плотность
@@ -48,6 +49,15 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	const alpha = state[8]
 	const gamma = state[9]
 	const a_x = alpha * 57.3
+	const m = state[10]
+
+	let dM = 0
+	let R = 0
+	if (params.booster) {
+		const thrust = params.booster.getThrust()
+		dM = thrust[0]
+		dR = thrust[1]
+	}
 
 	const Mach = V / aSnH(Y)
 	const QS = 0.5 * RoH(Y) * V * V * params.S_wing
@@ -62,8 +72,8 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	const dMZ = params.dMZ_elevator.interp(deltaElevator)
 	const MX = params.dMX_aileron.interp(deltaAileron)
 	
-	const _YA = Cya * QS / params.m
-	const _XA = Cxa * QS / params.m
+	const _YA = Cya * QS / m
+	const _XA = Cxa * QS / m
 	const MZ = (mZ0 + dMZ) * QSB
 
 	const STH = Math.sin(Th)
@@ -72,9 +82,12 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	const CPH = Math.cos(Psi)
 	const SG = Math.sin(gamma)
 	const CG = Math.cos(gamma)
+
+	const dRaxial = R ? R * Math.cos(alpha) / m : 0
+	const dRnormal = R ? R * Math.sin(alpha) / m : 0
 	
-	buffer[0] = -_XA - g0 * STH
-	buffer[1] = (_YA * CG - g0 * CTH) / V
+	buffer[0] = dRaxial -_XA - g0 * STH
+	buffer[1] = (dRnormal - _YA * CG - g0 * CTH) / V
 	buffer[2] = _YA * SG / V
 	buffer[3] = MZ / params.Jz
 	buffer[4] = MX * QSB/ params.Jx
@@ -83,6 +96,7 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	buffer[7] = V * CTH * SPH
 	buffer[8] = omegaZ
 	buffer[9] = omegaX
+	buffer[10] = dM ? -dM : 0
 }
 /**
 * @description численное интегрирование (метод Эйлера-Коши второго порядка точности)
@@ -97,7 +111,7 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 	let Mach = 0
 	const dT_05 = 0.5 * dT
 	const dT_6 = dT * 0.1666666666666666667
-	const result = [Float64Array.from([tau, ...initialState, controls.deltaPitch(), controls.deltaRoll() ])]
+	const result = [Float64Array.from([tau, ...initialState, params.m, controls.deltaPitch(), controls.deltaRoll() ])]
 	const K0 = new Float64Array(N_VARS)
 	const K1 = new Float64Array(N_VARS)
 	const K2 = new Float64Array(N_VARS)
@@ -108,7 +122,7 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 	const t0 = performance.now()
 	
 	while (tau < tauMax) {
-		const state = result[i++].slice(1, 11)
+		const state = result[i++].slice(1, 12)
 		
 		V = state[0]
 		H = state[6]
@@ -149,8 +163,8 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 			const j0 = j - 1
 			_res[j] = state[j0] + dT_6 * (K0[j0] + 2*(K1[j0] + K2[j0]) + K3[j0])
 		}
-		_res[11] = dElevator
-		_res[12] = dAileron
+		_res[N_VARS + 1] = dElevator
+		_res[N_VARS + 2] = dAileron
 		result.push(_res.slice())
 	}
 	const t1 = performance.now() - t0
@@ -184,8 +198,9 @@ const printResult = async function(path, data, sparce, tableHeader = DEFAULT_HEA
 			data[k][8].toFixed(0),
 			(data[k][9] * R2G).toFixed(2),
 			(data[k][10] * R2G).toFixed(2),
-			data[k][11].toFixed(1),
+			data[k][11].toFixed(2),
 			data[k][12].toFixed(1),
+			data[k][13].toFixed(1),
 		].join('\t') + '\n'
 		if (comaSwitch) tempStr = tempStr.replaceAll('.', ',')
 		result += tempStr
