@@ -54,9 +54,9 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	let dM = 0
 	let R = 0
 	if (params.booster) {
-		const thrust = params.booster.getThrust()
+		const thrust = params.booster.getThrust(t)
 		dM = thrust[0]
-		dR = thrust[1]
+		R = thrust[1]
 	}
 
 	const Mach = V / aSnH(Y)
@@ -87,7 +87,7 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 	const dRnormal = R ? R * Math.sin(alpha) / m : 0
 	
 	buffer[0] = dRaxial -_XA - g0 * STH
-	buffer[1] = (dRnormal - _YA * CG - g0 * CTH) / V
+	buffer[1] = (dRnormal + _YA * CG - g0 * CTH) / V
 	buffer[2] = _YA * SG / V
 	buffer[3] = MZ / params.Jz
 	buffer[4] = MX * QSB/ params.Jx
@@ -123,7 +123,6 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 	
 	while (tau < tauMax) {
 		const state = result[i++].slice(1, 12)
-		
 		V = state[0]
 		H = state[6]
 		alpha = state[8] * R2G
@@ -139,24 +138,25 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 		dMZ_elevator.checkIndex(dElevator)
 		dMX_aileron.checkIndex(dAileron)
 		controls.checkControls(state, tau)
-
-		getDerivatives(controls, params, state, tau, K0, dT)
+		
+		getDerivatives(controls, params, state, tau, K0)
 		for(let j = 0; j < N_VARS; j++) {
 			_state[j] = state[j] + dT_05 * K0[j]
 		}
-		getDerivatives(controls, params, _state, tau, K1, dT)
+		getDerivatives(controls, params, _state, tau, K1)
 		for(let j = 0; j < N_VARS; j++) {
 			_state[j] = state[j] + dT_05 * K1[j]
 		}
-		getDerivatives(controls, params, _state, tau, K2, dT)
+		getDerivatives(controls, params, _state, tau, K2)
 		for(let j = 0; j < N_VARS; j++) {
 			_state[j] = state[j] + dT_05 * K2[j]
 		}
-		getDerivatives(controls, params, _state, tau, K3, dT)
+		getDerivatives(controls, params, _state, tau, K3)
 		for(let j = 0; j < N_VARS; j++) {
 			_state[j] = state[j] + dT * K3[j]
 		}
 
+		params.booster.updFuel(tau, dT)
 		tau += dT
 		_res[0] = tau
 		for(let j = 1; j < N_VARS + 1; j++) {

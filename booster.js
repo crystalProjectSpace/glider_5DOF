@@ -14,19 +14,25 @@ Booster.prototype.init = function(mFuel, jRelative, TX, MX) {
     this.mFuelCurrent = this.mFuel
     this.jRelative = jRelative
     this.thrustDiagram.init(TX, MX, 0)
-
-
+   
     return this
 }
 
 Booster.prototype.getThrust = function(t) {
+    
     if(this.mFuelCurrent <=0 ) return [0, 0]
-    this.thrustDiagram.checkIndex(t)
+    this.thrustDiagram.checkIndex(t);
     const dM = this.thrustDiagram.interp(t)
     if(dM === 0) return [0, 0]
     const R = dM * this.jRelative
-    this.mFuelCurrent -= dM
     return [dM, R]
+}
+
+Booster.prototype.updFuel = function(t, dT) {    
+    if(this.mFuelCurrent <=0 ) return
+    this.thrustDiagram.checkIndex(t);
+    const dM = this.thrustDiagram.interp(t)
+    if(dM > 0) this.mFuelCurrent -= (dM * dT)
 }
 
 module.exports = { Booster }

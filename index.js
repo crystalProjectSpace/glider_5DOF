@@ -29,8 +29,9 @@ const setTrajectoryExperiment = function() {
     * @description параметры планера
     */
     const testParams = {
-        J: 2000, // удельный импульс СРС, м/с
-        m: 0.15, // масса планера
+        jRelative: 2000, // удельный импульс СРС, м/с
+        m: 1.3,
+        mFuel: 0.15, // масса планера
         S_wing: 0.0544, // площадь крыла
         B_chord: 0.085, // средняя аэродинамическая хорда
         Jx: 0.07, // момент инерции по продольной оси
@@ -44,16 +45,38 @@ const setTrajectoryExperiment = function() {
     }
     
     const testControls = new GliderControls()
+    // previous iteration
+    // testControls.initPitchCtrl(
+    //     -15.5,
+    //     15.5,
+    //     360,
+    //     0.05,
+    //     20.5,
+    //     8.75,
+    //     27.25,
+    //     -2.5/R2G
+    // )
+    
+    // testControls.initRollCtrl(
+    //     -29.5,
+    //     29.5,
+    //     360,
+    //     0.1,
+    //     -2.0,
+    //     -1.0,
+    //     -10.0,
+    //     0/R2G
+    // )
 
     testControls.initPitchCtrl(
         -15.5,
         15.5,
         360,
         0.05,
-        20.5,
-        8.75,
-        27.25,
-        -2.5/R2G
+        25.5,
+        10.75,
+        4.25,
+        35.5/R2G
     )
     
     testControls.initRollCtrl(

@@ -71,10 +71,19 @@ ControlSystem.prototype.pitchControlStep = function(state, t) {
     if(deltaT < this.sparsity) return
     this.tauPrev = t
     const thErr = state[1] - this.targetValue
+    let kV = 1
+    if(state[0] > 30) kV = 0.8
+    if(state[0] > 60) kV = 0.65
+    if(state[0] > 75) kV = 0.45
+    if(state[0] > 90) kV = 0.45
+    if(state[0] > 105) kV = 0.4
+    if(state[0] > 120) kV = 0.325
+    if(state[0] > 135) kV = 0.305
+    if(state[0] > 145) kV = 0.275
     //const alphaErr = state[8] - this.targetValue
     const dOmegaZ = (state[8] - this.omegaZprev) / deltaT
     this.integralError += thErr * this.k_i * deltaT
-    const targetControl = thErr * this.k_p + this.integralError + this.k_d * dOmegaZ
+    const targetControl = (thErr * this.k_p + this.integralError + this.k_d * dOmegaZ) * kV
     let delta = targetControl - this.currentDelta
     
     if(delta > 0) delta = Math.min(delta, this.deltaSpeed * deltaT)
