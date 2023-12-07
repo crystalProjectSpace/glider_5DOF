@@ -53,10 +53,12 @@ const getDerivatives = function(controls, params, state, t, buffer) {
 
 	let dM = 0
 	let R = 0
-	if (params.booster) {
+	if (params.booster.active) {
 		const thrust = params.booster.getThrust(t)
 		dM = thrust[0]
 		R = thrust[1]
+	} else if (params.motor.active) {
+		R = params.motor.getThrust(t)
 	}
 
 	const Mach = V / aSnH(Y)
@@ -156,7 +158,11 @@ const integrate = function(initialState, params, controls, tauMax, dT) {
 			_state[j] = state[j] + dT * K3[j]
 		}
 
-		params.booster.updFuel(tau, dT)
+		if (params.booster.active){
+			params.booster.updFuel(tau, dT)
+		} else if(params.motor.active) {
+			params.motor.updCharge(tau, dT)
+		}	
 		tau += dT
 		_res[0] = tau
 		for(let j = 1; j < N_VARS + 1; j++) {
